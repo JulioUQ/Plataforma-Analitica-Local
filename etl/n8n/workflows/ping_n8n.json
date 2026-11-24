@@ -1,0 +1,127 @@
+[
+  {
+    "updatedAt": "2026-11-24T17:30:02.545Z",
+    "createdAt": "2026-11-24T17:30:02.545Z",
+    "id": "pingN8nTestAnlyt",
+    "name": "ping_n8n",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "6f1d2c55-1a3b-4c1e-9a01-0a0000000001",
+        "name": "Manual Trigger",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO dbo.ping (mensaje)\nOUTPUT INSERTED.id, INSERTED.mensaje, INSERTED.creado\nVALUES (N'Hola desde n8n');"
+        },
+        "id": "6f1d2c55-1a3b-4c1e-9a01-0a0000000002",
+        "name": "Insertar ping",
+        "type": "n8n-nodes-base.microsoftSql",
+        "typeVersion": 1.1,
+        "position": [
+          240,
+          0
+        ],
+        "credentials": {
+          "microsoftSql": {
+            "id": "mssqlTestAnalyti",
+            "name": "SQL Server Test_Analytics (analytics_etl)"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT TOP 5 id, mensaje, creado\nFROM dbo.ping\nORDER BY id DESC;"
+        },
+        "id": "6f1d2c55-1a3b-4c1e-9a01-0a0000000003",
+        "name": "Ultimas 5 filas",
+        "type": "n8n-nodes-base.microsoftSql",
+        "typeVersion": 1.1,
+        "position": [
+          480,
+          0
+        ],
+        "executeOnce": true,
+        "credentials": {
+          "microsoftSql": {
+            "id": "mssqlTestAnalyti",
+            "name": "SQL Server Test_Analytics (analytics_etl)"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Manual Trigger": {
+        "main": [
+          [
+            {
+              "node": "Insertar ping",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Insertar ping": {
+        "main": [
+          [
+            {
+              "node": "Ultimas 5 filas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "timezone": "Europe/Madrid"
+    },
+    "staticData": null,
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": {},
+    "versionId": "5c252cf8-f995-454e-968b-bbc6a7696540",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-11-24T17:30:02.551Z",
+        "createdAt": "2026-11-24T17:30:02.551Z",
+        "role": "workflow:owner",
+        "workflowId": "pingN8nTestAnlyt",
+        "projectId": "xlgLkSNSMMzIySvo",
+        "project": {
+          "updatedAt": "2026-11-24T17:28:26.800Z",
+          "createdAt": "2026-11-24T17:28:26.800Z",
+          "id": "xlgLkSNSMMzIySvo",
+          "name": "Unnamed Project",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "2d7a93b8-5f07-4c50-9aa8-08dfdc33c770"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
+    }
+  }
+]

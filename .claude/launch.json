@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard-cobros",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["python\\dashboard_cobros.py"],
+      "port": 8050,
+      "url": "http://127.0.0.1:8050"
+    }
+  ]
+}

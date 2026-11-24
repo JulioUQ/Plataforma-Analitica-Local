@@ -1,0 +1,212 @@
+[
+  {
+    "updatedAt": "2026-11-24T19:54:01.794Z",
+    "createdAt": "2026-11-24T19:54:01.794Z",
+    "id": "importarCobrosGA",
+    "name": "importar_cobros",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "a1c0b5e2-0000-4000-8000-000000000001",
+        "name": "Manual Trigger",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "fileSelector": "/data/ejemplos/cobros.csv",
+          "options": {}
+        },
+        "id": "a1c0b5e2-0000-4000-8000-000000000002",
+        "name": "Leer CSV",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          220,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "csv",
+          "binaryPropertyName": "data",
+          "options": {
+            "headerRow": true,
+            "delimiter": ",",
+            "includeEmptyCells": true
+          }
+        },
+        "id": "a1c0b5e2-0000-4000-8000-000000000003",
+        "name": "Extraer filas",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          440,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "// Valida el CSV completo antes de tocar la base: si hay un solo error, no se carga nada.\nconst COLUMNAS = ['cobro_id', 'inmueble', 'fecha_cobro', 'importe'];\nconst filas = $input.all().map((item) => item.json);\nif (filas.length === 0) throw new Error('El CSV no contiene filas de datos');\n\nconst errores = [];\nconst vistos = new Set();\nconst lote = [];\nfilas.forEach((fila, idx) => {\n  const linea = idx + 2; // la linea 1 es la cabecera\n  const claves = Object.keys(fila);\n  const faltan = COLUMNAS.filter((c) => !claves.includes(c));\n  const sobran = claves.filter((c) => !COLUMNAS.includes(c));\n  if (faltan.length || sobran.length) {\n    errores.push(`linea ${linea}: columnas incorrectas (faltan: ${faltan.join('|') || '-'}; sobran: ${sobran.join('|') || '-'})`);\n    return;\n  }\n  const v = Object.fromEntries(COLUMNAS.map((c) => [c, String(fila[c] ?? '').trim()]));\n\n  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,19}$/.test(v.cobro_id)) errores.push(`linea ${linea}: cobro_id vacio o no valido`);\n  else if (vistos.has(v.cobro_id)) errores.push(`linea ${linea}: cobro_id repetido ${v.cobro_id}`);\n  vistos.add(v.cobro_id);\n\n  if (!v.inmueble || v.inmueble.length > 100) errores.push(`linea ${linea}: inmueble vacio o de mas de 100 caracteres`);\n\n  const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(v.fecha_cobro);\n  const d = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;\n  if (!m || d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) {\n    errores.push(`linea ${linea}: fecha_cobro debe ser una fecha ISO AAAA-MM-DD valida`);\n  }\n\n  if (!/^\\d{1,10}(\\.\\d{1,2})?$/.test(v.importe) || Number(v.importe) <= 0) {\n    errores.push(`linea ${linea}: importe debe ser positivo, con punto decimal y hasta 2 decimales`);\n  }\n  lote.push(v);\n});\n\nif (errores.length) {\n  throw new Error(`CSV no valido (${errores.length} error/es): ${errores.slice(0, 20).join('; ')}`);\n}\n\nconst totalCentimos = lote.reduce((s, f) => s + Math.round(Number(f.importe) * 100), 0);\nreturn [{ json: { filas: lote.length, total_csv: (totalCentimos / 100).toFixed(2), lote: JSON.stringify(lote) } }];\n"
+        },
+        "id": "a1c0b5e2-0000-4000-8000-000000000004",
+        "name": "Validar cobros",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          660,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "-- Upsert atomico por cobro_id. El lote validado llega como unico parametro (@p1) y se desempaqueta con OPENJSON.\nSET XACT_ABORT ON;\nDECLARE @lote NVARCHAR(MAX) = $1;\nDECLARE @acciones TABLE (accion NVARCHAR(10) NOT NULL);\n\nBEGIN TRAN;\nMERGE dbo.cobros WITH (HOLDLOCK) AS t\nUSING (\n    SELECT j.cobro_id,\n           j.inmueble,\n           CONVERT(date, j.fecha_cobro, 23)     AS fecha_cobro,\n           CAST(j.importe AS DECIMAL(12, 2))    AS importe\n    FROM OPENJSON(@lote) WITH (\n        cobro_id    NVARCHAR(20)  '$.cobro_id',\n        inmueble    NVARCHAR(100) '$.inmueble',\n        fecha_cobro CHAR(10)      '$.fecha_cobro',\n        importe     VARCHAR(20)   '$.importe'\n    ) AS j\n) AS s\nON t.cobro_id = s.cobro_id\nWHEN MATCHED AND (t.inmueble <> s.inmueble OR t.fecha_cobro <> s.fecha_cobro OR t.importe <> s.importe) THEN\n    UPDATE SET inmueble = s.inmueble, fecha_cobro = s.fecha_cobro, importe = s.importe, actualizado_en = SYSDATETIME()\nWHEN NOT MATCHED BY TARGET THEN\n    INSERT (cobro_id, inmueble, fecha_cobro, importe) VALUES (s.cobro_id, s.inmueble, s.fecha_cobro, s.importe)\nOUTPUT $action INTO @acciones;\nCOMMIT;\n\nSELECT (SELECT COUNT(*) FROM OPENJSON(@lote))                     AS filas_csv,\n       ISNULL(SUM(CASE WHEN accion = 'INSERT' THEN 1 ELSE 0 END), 0) AS insertadas,\n       ISNULL(SUM(CASE WHEN accion = 'UPDATE' THEN 1 ELSE 0 END), 0) AS actualizadas\nFROM @acciones;",
+          "options": {
+            "queryReplacement": "={{ [ $json.lote ] }}"
+          }
+        },
+        "id": "a1c0b5e2-0000-4000-8000-000000000005",
+        "name": "Cargar cobros",
+        "type": "n8n-nodes-base.microsoftSql",
+        "typeVersion": 1.2,
+        "position": [
+          880,
+          0
+        ],
+        "credentials": {
+          "microsoftSql": {
+            "id": "mssqlGestionAlqu",
+            "name": "SQL Server Gestion_Alquileres (analytics_etl)"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT mes, cobros, total\nFROM (\n    SELECT CONVERT(char(7), fecha_cobro, 126) AS mes, COUNT(*) AS cobros, SUM(importe) AS total, 0 AS orden\n    FROM dbo.cobros\n    GROUP BY CONVERT(char(7), fecha_cobro, 126)\n    UNION ALL\n    SELECT 'TOTAL', COUNT(*), SUM(importe), 1\n    FROM dbo.cobros\n) AS r\nORDER BY orden, mes;",
+          "options": {}
+        },
+        "id": "a1c0b5e2-0000-4000-8000-000000000006",
+        "name": "Totales por mes",
+        "type": "n8n-nodes-base.microsoftSql",
+        "typeVersion": 1.2,
+        "position": [
+          1100,
+          0
+        ],
+        "executeOnce": true,
+        "credentials": {
+          "microsoftSql": {
+            "id": "mssqlGestionAlqu",
+            "name": "SQL Server Gestion_Alquileres (analytics_etl)"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Manual Trigger": {
+        "main": [
+          [
+            {
+              "node": "Leer CSV",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Leer CSV": {
+        "main": [
+          [
+            {
+              "node": "Extraer filas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraer filas": {
+        "main": [
+          [
+            {
+              "node": "Validar cobros",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar cobros": {
+        "main": [
+          [
+            {
+              "node": "Cargar cobros",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Cargar cobros": {
+        "main": [
+          [
+            {
+              "node": "Totales por mes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "timezone": "Europe/Madrid"
+    },
+    "staticData": null,
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": {},
+    "versionId": "2f0911fe-da28-4138-8dac-77196b5fe60a",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-11-24T19:54:01.798Z",
+        "createdAt": "2026-11-24T19:54:01.798Z",
+        "role": "workflow:owner",
+        "workflowId": "importarCobrosGA",
+        "projectId": "xlgLkSNSMMzIySvo",
+        "project": {
+          "updatedAt": "2026-11-24T17:28:26.800Z",
+          "createdAt": "2026-11-24T17:28:26.800Z",
+          "id": "xlgLkSNSMMzIySvo",
+          "name": "Unnamed Project",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "2d7a93b8-5f07-4c50-9aa8-08dfdc33c770"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
+    }
+  }
+]

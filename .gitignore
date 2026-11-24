@@ -1,0 +1,46 @@
+# --- Secretos ---
+.env
+.env.*
+!.env.example
+secrets/
+*.secret
+*.secret.sql
+01_Contraseñas*
+*.pem
+*.key
+*.pfx
+*.kdbx
+
+# --- Instaladores y binarios pesados ---
+Programas/
+*.msi
+*.exe
+*.zip
+
+# --- Python ---
+.venv/
+.venv*/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+
+# --- Datos y copias de bases de datos ---
+data/
+*.bak
+*.mdf
+*.ldf
+*.ndf
+
+# --- Salida generada de GitHub Pages ---
+_site/
+
+# --- ETL: n8n ---
+.n8n/
+
+# --- Editor y sistema ---
+.vscode/
+Thumbs.db
+desktop.ini
+*.log

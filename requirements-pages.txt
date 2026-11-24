@@ -1,0 +1,6 @@
+# Dependencias mínimas para generar el dashboard estático de GitHub Pages
+# (python/generar_pagina.py). Mismas versiones que requirements.txt.
+plotly==7.1.0
+narwhals==2.27.1
+packaging==26.3
+tzdata==2026.5   # zona Europe/Madrid aunque el sistema no traiga base de zonas horarias
