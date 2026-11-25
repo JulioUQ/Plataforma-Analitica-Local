@@ -866,7 +866,7 @@ Detalle e instrucciones para repetirlo en `etl/n8n/README.md`.
 - [X] Reconciliación Excel ↔ SQL Server: 12 filas mes×plataforma × 8 indicadores sin diferencias. Airbnb 6 reservas, 11 noches, bruto 575,00 €, neto 554,13 €, cobrado 554,13 €; Booking 19 reservas, 41 noches, bruto 2.917,50 €, comisiones 437,625 €, gastos 37,90 €, neto 2.441,975 €; 0 excluidas.
 - [X] Dash local en http://127.0.0.1:8060 con filtros de plataforma y periodo, indicadores etiquetados, gráfico, tabla y «Actualizar datos»; mismos totales que SQL Server (p. ej. Airbnb oct–nov: 4 reservas, neto 467,40 €, cobrado 467,40 €).
 - [X] `python/exportar_agregados.py` y `generar_pagina.py` desde el JSON; vista comprobada en escritorio y en 375 px.
-- [ ] Commit, push, despliegue de Pages verificado sin sesión y rama sincronizada.
+- [X] Commit `34221d8` publicado en `main`; despliegue de Pages correcto (build y deploy). Página abierta sin sesión: 25 reservas, bruto 3.492,50 €, neto 2.996,11 €, cobrado 554,13 €, los mismos importes mensuales que el JSON exportado, filtros por plataforma y diseño en 375 px sin desplazamiento horizontal. Artefacto revisado: solo `index.html` y `plotly.min.js`, sin valores personales de los Excel. Dash local (8060) y demo ficticia (8050, 20 cobros y 13.533,10 €) operativos.
 
 Siguiente: ampliar el modelo de `Gestion_Alquileres` (gastos, ocupación) y nuevos formatos de export.
 
