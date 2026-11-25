@@ -7,6 +7,13 @@
       "runtimeArgs": ["python\\dashboard_cobros.py"],
       "port": 8050,
       "url": "http://127.0.0.1:8050"
+    },
+    {
+      "name": "dashboard-alquileres",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["python\\dashboard_alquileres.py"],
+      "port": 8060,
+      "url": "http://127.0.0.1:8060"
     }
   ]
 }

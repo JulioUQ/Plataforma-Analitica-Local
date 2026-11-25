@@ -1,0 +1,377 @@
+[
+  {
+    "updatedAt": "2026-11-25T17:11:37.228Z",
+    "createdAt": "2026-11-25T17:11:37.228Z",
+    "id": "impAlquileresMVP",
+    "name": "importar_alquileres",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "b7a1c3d0-0000-4000-8000-000000000001",
+        "name": "Ejecutar manualmente",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "daysInterval": 1,
+                "triggerAtHour": 9,
+                "triggerAtMinute": 0
+              }
+            ]
+          }
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000002",
+        "name": "Programación diaria 09:00",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "fileSelector": "/data/alquileres/**/*.xlsx",
+          "options": {}
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000003",
+        "name": "Buscar Excel",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          240,
+          100
+        ],
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "action": "hash",
+          "binaryData": true,
+          "binaryPropertyName": "data",
+          "type": "SHA256",
+          "dataPropertyName": "sha256",
+          "encoding": "hex"
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000004",
+        "name": "Huella SHA-256",
+        "type": "n8n-nodes-base.crypto",
+        "typeVersion": 2,
+        "position": [
+          460,
+          100
+        ],
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "// Una entrada por Excel encontrado en el montaje /data/alquileres (solo lectura).\n// La ruta se guarda relativa al montaje: así coincide con la carpeta data/ del repo.\n// \"Huella SHA-256\" añade el hash pero no conserva el binario: se recupera de \"Buscar Excel\",\n// cuyos elementos llegan en el mismo orden.\nconst BASE = '/data/alquileres/';\nconst archivos = $('Buscar Excel').all();\nconst fuentes = [];\n$input.all().forEach((item, i) => {\n  const original = archivos[i];\n  const bin = original && original.binary && original.binary.data;\n  if (!bin || !/^[0-9a-f]{64}$/.test(item.json.sha256 || '')) return;   // sin archivos o sin huella\n  const nombre = (bin.fileName || '').normalize('NFC');\n  if (nombre.startsWith('~$')) return;                 // archivo de bloqueo de un Excel abierto\n  const ruta = `${bin.directory || ''}/${nombre}`.normalize('NFC').replace(BASE, '');\n  fuentes.push({ json: { ruta, nombre, sha256: item.json.sha256 }, binary: original.binary });\n});\nfuentes.sort((a, b) => a.json.ruta.localeCompare(b.json.ruta));\nreturn fuentes.length ? fuentes : [{ json: { sin_fuentes: true } }];\n"
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000005",
+        "name": "Preparar fuentes",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          680,
+          100
+        ]
+      },
+      {
+        "parameters": {
+          "batchSize": 1,
+          "options": {}
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000006",
+        "name": "Recorrer fuentes",
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          900,
+          100
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "xlsx",
+          "binaryPropertyName": "data",
+          "options": {
+            "headerRow": true,
+            "includeEmptyCells": true
+          }
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000007",
+        "name": "Extraer filas",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.2,
+        "position": [
+          1120,
+          200
+        ],
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "// Valida y normaliza UN archivo (el elemento actual del bucle) sin escribir nada.\n// Devuelve un único elemento para alq.registrar_fuente: si hay un solo error, valido = false\n// y no se envía el lote, así que el archivo no deja escrituras parciales.\n// Los mensajes citan línea y columna, nunca valores (pueden ser datos personales).\nconst fuente = $('Recorrer fuentes').first().json;\nif (fuente.sin_fuentes) return [{ json: { sin_fuentes: true } }];\n\nconst filas = $input.all().map((i) => i.json);\nconst res = { ruta: fuente.ruta, sha256: fuente.sha256, plataforma: null, valido: false,\n              filas_leidas: 0, filas_excluidas: 0, fechas_corregidas: 0, motivo: null, lote: null };\nconst rechazar = (motivo) => ({ json: { ...res, motivo } });\n\nconst fallo = filas.find((f) => f.error);\nif (fallo) return [rechazar('No se pudo leer el Excel (¿archivo dañado o protegido?)')];\nconst datos = filas.filter((f) => Object.values(f).some((v) => v !== '' && v !== null && v !== undefined));\nif (datos.length === 0) return [rechazar('El Excel no tiene filas de datos')];\nres.filas_leidas = datos.length;\n\nconst cols = new Set(Object.keys(datos[0]));\nconst AIRBNB = ['Fecha', 'Fecha de llegada estimada', 'Tipo', 'Código de confirmación', 'Fecha de la reserva',\n  'Fecha de inicio', 'Fecha de finalización', 'Noches', 'Moneda', 'Importe', 'Cobrado', 'Comisión de servicio',\n  'Comisión por Pago rápido', 'Gastos de limpieza', 'Ingresos brutos', 'Impuestos liquidados por Airbnb',\n  'Código de referencia'];\nconst BOOKING = ['Reservation number', 'Booked on', 'Arrival', 'Departure', 'Room nights', 'Original amount',\n  'Final amount', 'Commission amount', 'Payment fee', 'Status', 'Currency'];\nif (AIRBNB.every((c) => cols.has(c))) res.plataforma = 'airbnb';\nelse if (BOOKING.every((c) => cols.has(c))) res.plataforma = 'booking';\nelse return [rechazar('Formato no reconocido: faltan columnas del export de Airbnb (Pagos) o de Booking (Reservas)')];\n\nconst errores = [];\nconst err = (linea, msg) => errores.push(`línea ${linea}: ${msg}`);\nconst vacio = (v) => v === undefined || v === null || String(v).trim() === '';\n\n// Importes con punto decimal y hasta 3 decimales; aritmética en milésimas para no perder precisión\nfunction importe(v, linea, col, { obligatorio = true, defecto = null } = {}) {\n  if (vacio(v)) { if (obligatorio) err(linea, `${col} vacío`); return defecto; }\n  const s = typeof v === 'number' ? String(v) : String(v).trim();\n  if (!/^\\d{1,11}(\\.\\d{1,3})?$/.test(s)) { err(linea, `${col} no es un importe válido (punto decimal, ≥ 0)`); return defecto; }\n  return s;\n}\nconst mil = (s) => Math.round(parseFloat(s) * 1000);\nconst deMil = (n) => (n / 1000).toFixed(3);\n\nfunction fechaValida(a, m, d) {\n  const f = new Date(Date.UTC(a, m - 1, d));\n  return f.getUTCFullYear() === a && f.getUTCMonth() === m - 1 && f.getUTCDate() === d;\n}\nconst iso = (a, m, d) => `${a}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;\n\n// Airbnb exporta MM/DD/AAAA como texto. Cuando día y mes son <= 12, Excel lo convirtió en fecha\n// con día y mes intercambiados (llega como ISO con hora 00:00Z): se deshace el intercambio.\nfunction fechaAirbnb(v, linea, col, obligatorio = true) {\n  if (vacio(v)) { if (obligatorio) err(linea, `${col} vacía`); return null; }\n  const s = String(v).trim();\n  let m = /^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/.exec(s);\n  if (m && fechaValida(+m[3], +m[1], +m[2])) return iso(+m[3], +m[1], +m[2]);\n  m = /^(\\d{4})-(\\d{2})-(\\d{2})T00:00:00(\\.000)?Z$/.exec(s);\n  if (m && fechaValida(+m[1], +m[3], +m[2])) { res.fechas_corregidas++; return iso(+m[1], +m[3], +m[2]); }\n  err(linea, `${col} no es una fecha MM/DD/AAAA reconocible`);\n  return null;\n}\n// Booking exporta AAAA-MM-DD (o AAAA-MM-DDTHH:MM[:SS] en \"Booked on\")\nfunction fechaISO(v, linea, col, obligatorio = true) {\n  if (vacio(v)) { if (obligatorio) err(linea, `${col} vacía`); return null; }\n  const m = /^(\\d{4})-(\\d{2})-(\\d{2})(T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?Z?)?$/.exec(String(v).trim());\n  if (m && fechaValida(+m[1], +m[2], +m[3])) return iso(+m[1], +m[2], +m[3]);\n  err(linea, `${col} no es una fecha AAAA-MM-DD válida`);\n  return null;\n}\nfunction entero(v, linea, col) {\n  const s = String(v ?? '').trim();\n  if (!/^\\d{1,4}$/.test(s)) { err(linea, `${col} no es un número entero`); return null; }\n  return parseInt(s, 10);\n}\nconst dias = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);\nfunction codigo(v, linea, col) {\n  const s = String(v ?? '').trim();\n  if (!s || s.length > 100) { err(linea, `${col} vacío o demasiado largo`); return null; }\n  return s;\n}\nfunction eur(v, linea, col) {\n  if (String(v ?? '').trim() !== 'EUR') err(linea, `${col} distinta de EUR (el MVP solo admite EUR)`);\n  return 'EUR';\n}\n\nconst lote = [];\nif (res.plataforma === 'airbnb') {\n  // Export \"Pagos\": cada fila Payout precede a las reservas que liquida\n  let grupo = null;\n  const cerrar = () => {\n    if (grupo && grupo.suma !== grupo.cobrado) err(grupo.linea, `el pago no cuadra con la suma de sus reservas`);\n  };\n  datos.forEach((f, i) => {\n    const l = i + 2;\n    const tipo = String(f['Tipo'] ?? '').trim();\n    eur(f['Moneda'], l, 'Moneda');\n    if (tipo === 'Payout') {\n      cerrar();\n      const cobrado = importe(f['Cobrado'], l, 'Cobrado');\n      lote.push({ tipo: 'pago', codigo: codigo(f['Código de referencia'], l, 'Código de referencia'),\n        fecha_pago: fechaAirbnb(f['Fecha'], l, 'Fecha'),\n        fecha_llegada_estimada: fechaAirbnb(f['Fecha de llegada estimada'], l, 'Fecha de llegada estimada', false),\n        moneda: 'EUR', importe_cobrado: cobrado });\n      grupo = { linea: l, cobrado: cobrado === null ? NaN : mil(cobrado), suma: 0 };\n    } else if (tipo === 'Reserva') {\n      if (!grupo) err(l, 'reserva sin una fila Payout anterior');\n      const llegada = fechaAirbnb(f['Fecha de inicio'], l, 'Fecha de inicio');\n      const salida = fechaAirbnb(f['Fecha de finalización'], l, 'Fecha de finalización');\n      const noches = entero(f['Noches'], l, 'Noches');\n      if (llegada && salida && noches !== null && dias(llegada, salida) !== noches) err(l, 'Noches no coincide con las fechas');\n      const reserva = fechaAirbnb(f['Fecha de la reserva'], l, 'Fecha de la reserva', false);\n      if (reserva && llegada && reserva > llegada) err(l, 'Fecha de la reserva posterior a la llegada');\n      const bruto = importe(f['Ingresos brutos'], l, 'Ingresos brutos');\n      const comision = importe(f['Comisión de servicio'], l, 'Comisión de servicio');\n      const rapido = importe(f['Comisión por Pago rápido'], l, 'Comisión por Pago rápido', { obligatorio: false, defecto: '0' });\n      const neto = importe(f['Importe'], l, 'Importe');\n      if ([bruto, comision, rapido, neto].every((x) => x !== null) && mil(neto) !== mil(bruto) - mil(comision) - mil(rapido))\n        err(l, 'Importe distinto de Ingresos brutos - comisiones');\n      if (grupo && neto !== null) grupo.suma += mil(neto);\n      lote.push({ tipo: 'reserva', codigo: codigo(f['Código de confirmación'], l, 'Código de confirmación'),\n        fecha_reserva: reserva, fecha_llegada: llegada, fecha_salida: salida, noches, estado: 'pagada', incluida: true,\n        moneda: 'EUR', importe_original: null, importe_bruto: bruto, comision, gastos_pago: rapido, neto,\n        limpieza: importe(f['Gastos de limpieza'], l, 'Gastos de limpieza', { obligatorio: false }),\n        impuestos: importe(f['Impuestos liquidados por Airbnb'], l, 'Impuestos liquidados por Airbnb', { obligatorio: false }) });\n    } else {\n      err(l, 'Tipo no admitido en el MVP (solo Payout y Reserva)');\n    }\n  });\n  cerrar();\n} else {\n  // Export \"Reservas\" de Booking: una fila por reserva; no incluye pagos liquidados\n  datos.forEach((f, i) => {\n    const l = i + 2;\n    eur(f['Currency'], l, 'Currency');\n    const estado = String(f['Status'] ?? '').trim();\n    let incluida;\n    if (/^ok$/i.test(estado)) incluida = true;\n    else if (/^(cancel|no[_ -]?show)/i.test(estado)) { incluida = false; res.filas_excluidas++; }\n    else err(l, 'Status no admitido (OK, cancelled*, no_show)');\n    const llegada = fechaISO(f['Arrival'], l, 'Arrival');\n    const salida = fechaISO(f['Departure'], l, 'Departure');\n    const noches = entero(f['Room nights'], l, 'Room nights');\n    if (llegada && salida && noches !== null && dias(llegada, salida) !== noches) err(l, 'Room nights no coincide con las fechas');\n    const reserva = fechaISO(f['Booked on'], l, 'Booked on', false);\n    if (reserva && llegada && reserva > llegada) err(l, 'Booked on posterior a Arrival');\n    const bruto = importe(f['Final amount'], l, 'Final amount');\n    const comision = importe(f['Commission amount'], l, 'Commission amount');\n    const gastos = importe(f['Payment fee'], l, 'Payment fee', { obligatorio: false, defecto: '0' });\n    const neto = [bruto, comision, gastos].every((x) => x !== null) ? deMil(mil(bruto) - mil(comision) - mil(gastos)) : null;\n    lote.push({ tipo: 'reserva', codigo: codigo(f['Reservation number'], l, 'Reservation number'),\n      fecha_reserva: reserva, fecha_llegada: llegada, fecha_salida: salida, noches, estado, incluida: incluida ?? false,\n      moneda: 'EUR', importe_original: importe(f['Original amount'], l, 'Original amount', { obligatorio: false }),\n      importe_bruto: bruto, comision, gastos_pago: gastos, neto, limpieza: null, impuestos: null });\n  });\n}\n\nconst vistos = new Set();\nlote.forEach((r, i) => {\n  const k = `${r.tipo}|${r.codigo}`;\n  if (r.codigo && vistos.has(k)) err(i + 2, 'código repetido en el archivo');\n  vistos.add(k);\n});\n\nif (errores.length) {\n  const motivo = `${errores.length} error(es): ${errores.slice(0, 10).join('; ')}${errores.length > 10 ? '; …' : ''}`;\n  return [rechazar(motivo)];\n}\nreturn [{ json: { ...res, valido: true, lote: JSON.stringify(lote) } }];\n"
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000008",
+        "name": "Validar y normalizar",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1340,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "-- Una transacción por archivo dentro del procedimiento; todos los valores van como parámetros\nEXEC alq.registrar_fuente @ejecucion = $1, @modo = $2, @ruta = $3, @plataforma = $4, @sha256 = $5,\n     @valido = $6, @motivo = $7, @filas_leidas = $8, @filas_excluidas = $9, @lote = $10;",
+          "options": {
+            "queryReplacement": "={{ [ $execution.id, ($('Programación diaria 09:00').isExecuted ? 'programada' : ($execution.mode === 'test' ? 'manual_editor' : 'manual_cli')), $json.ruta ?? null, $json.plataforma ?? null, $json.sha256 ?? null, $json.valido ? 1 : 0, $json.motivo ?? null, $json.filas_leidas ?? 0, $json.filas_excluidas ?? 0, $json.lote ?? null ] }}"
+          }
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000009",
+        "name": "Registrar fuente",
+        "type": "n8n-nodes-base.microsoftSql",
+        "typeVersion": 1.2,
+        "position": [
+          1560,
+          200
+        ],
+        "credentials": {
+          "microsoftSql": {
+            "id": "mssqlGestionAlqu",
+            "name": "SQL Server Gestion_Alquileres (analytics_etl)"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "EXEC alq.cerrar_ejecucion @ejecucion = $1, @modo = $2;",
+          "options": {
+            "queryReplacement": "={{ [ $execution.id, ($('Programación diaria 09:00').isExecuted ? 'programada' : ($execution.mode === 'test' ? 'manual_editor' : 'manual_cli')) ] }}"
+          }
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000010",
+        "name": "Cerrar ejecución",
+        "type": "n8n-nodes-base.microsoftSql",
+        "typeVersion": 1.2,
+        "position": [
+          1120,
+          0
+        ],
+        "credentials": {
+          "microsoftSql": {
+            "id": "mssqlGestionAlqu",
+            "name": "SQL Server Gestion_Alquileres (analytics_etl)"
+          }
+        },
+        "executeOnce": true
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "// Resumen final de la ejecución (sin datos personales). Si algún archivo se rechazó, la\n// ejecución termina en error para que aparezca marcada en el historial de n8n.\nconst r = $input.first().json;\nconst resumen = {\n  ejecucion: r.ejecucion_n8n,\n  modo: r.modo,\n  resultado: r.estado,\n  archivos: { cargados: r.fuentes_cargadas, sin_cambios: r.fuentes_sin_cambios, rechazados: r.fuentes_rechazadas },\n  filas: { aceptadas: r.filas_aceptadas, excluidas: r.filas_excluidas, rechazadas: r.filas_rechazadas,\n           insertadas: r.filas_insertadas, actualizadas: r.filas_actualizadas },\n  detalle: $('Recorrer fuentes').all().map((i) => ({ ruta: i.json.ruta, estado: i.json.estado,\n                                                     aceptadas: i.json.filas_aceptadas, excluidas: i.json.filas_excluidas,\n                                                     rechazadas: i.json.filas_rechazadas, motivo: i.json.motivo })),\n};\nresumen.mensaje = {\n  sin_cambios: `Sin cambios: ${r.fuentes_sin_cambios} archivo(s) ya cargado(s) con el mismo contenido; no se ha escrito nada.`,\n  cargada: `Carga correcta: ${r.fuentes_cargadas} archivo(s); ${r.filas_insertadas} fila(s) nueva(s) y ${r.filas_actualizadas} actualizada(s).`,\n  sin_fuentes: 'Sin archivos: no hay ningún .xlsx en data/ (montado en /data/alquileres); no se ha escrito nada.',\n  con_errores: `Importación con errores: ${r.fuentes_rechazadas} archivo(s) rechazado(s) sin escrituras. Consulta alq.ejecuciones_fuentes.`,\n}[r.estado] ?? `Estado ${r.estado}`;\nif (r.estado === 'con_errores') {\n  const motivos = resumen.detalle.filter((d) => d.estado === 'rechazada').map((d) => `${d.ruta}: ${d.motivo}`).join(' | ');\n  throw new Error(`${resumen.mensaje} ${motivos}`);\n}\nreturn [{ json: resumen }];\n"
+        },
+        "id": "b7a1c3d0-0000-4000-8000-000000000011",
+        "name": "Resumen",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1340,
+          0
+        ]
+      }
+    ],
+    "connections": {
+      "Ejecutar manualmente": {
+        "main": [
+          [
+            {
+              "node": "Buscar Excel",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Programación diaria 09:00": {
+        "main": [
+          [
+            {
+              "node": "Buscar Excel",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buscar Excel": {
+        "main": [
+          [
+            {
+              "node": "Huella SHA-256",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Huella SHA-256": {
+        "main": [
+          [
+            {
+              "node": "Preparar fuentes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar fuentes": {
+        "main": [
+          [
+            {
+              "node": "Recorrer fuentes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Recorrer fuentes": {
+        "main": [
+          [
+            {
+              "node": "Cerrar ejecución",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Extraer filas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extraer filas": {
+        "main": [
+          [
+            {
+              "node": "Validar y normalizar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar y normalizar": {
+        "main": [
+          [
+            {
+              "node": "Registrar fuente",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Registrar fuente": {
+        "main": [
+          [
+            {
+              "node": "Recorrer fuentes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Cerrar ejecución": {
+        "main": [
+          [
+            {
+              "node": "Resumen",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "timezone": "Europe/Madrid",
+      "saveManualExecutions": true,
+      "saveDataSuccessExecution": "all",
+      "saveDataErrorExecution": "all",
+      "saveExecutionProgress": false,
+      "executionTimeout": 600
+    },
+    "staticData": {
+      "node:Programación diaria 09:00": {
+        "recurrenceRules": [
+          null
+        ],
+        "recurrenceRuleSignatures": [
+          null
+        ]
+      }
+    },
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": {},
+    "versionId": "4638fcf6-b183-47d4-8f7e-c589520dea66",
+    "activeVersionId": "4638fcf6-b183-47d4-8f7e-c589520dea66",
+    "versionCounter": 6,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-11-25T17:11:37.236Z",
+        "createdAt": "2026-11-25T17:11:37.236Z",
+        "role": "workflow:owner",
+        "workflowId": "impAlquileresMVP",
+        "projectId": "xlgLkSNSMMzIySvo",
+        "project": {
+          "updatedAt": "2026-11-24T17:28:26.800Z",
+          "createdAt": "2026-11-24T17:28:26.800Z",
+          "id": "xlgLkSNSMMzIySvo",
+          "name": "Unnamed Project",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "2d7a93b8-5f07-4c50-9aa8-08dfdc33c770"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
+    }
+  }
+]

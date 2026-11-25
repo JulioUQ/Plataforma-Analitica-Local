@@ -847,7 +847,28 @@ Detalle e instrucciones para repetirlo en `etl/n8n/README.md`.
 - [X] Historial publicable nuevo sin el commit con la contraseña antigua; historial original conservado en una referencia local de respaldo.
 - [X] Repositorio público, GitHub Pages con GitHub Actions y rama `main` local siguiendo a `origin/main`.
 
-Siguiente: modelado completo de `Gestion_Alquileres` (fase 6).
+---
+
+# FASE 6 (MVP): datos reales de Airbnb y Booking
+
+**Recorrido:** Excel en `data/` → n8n `importar_alquileres` (manual y diario 09:00) → `Gestion_Alquileres.alq` → `python/alquileres.py` → Dash local (8060) y `publicacion/agregados_alquileres.json` → GitHub Pages. Instrucciones en el `README.md` de la raíz.
+
+## Checklist del MVP (verificado el 25-11-2026)
+
+- [X] Excel inspeccionados sin modificarlos (hashes iguales antes y después): Airbnb = export de pagos (6 `Reserva` + 4 `Payout`, EUR, importes en texto, fechas MM/DD/AAAA con día y mes intercambiados por Excel cuando ambos son ≤ 12); Booking = export de reservas (19, todas `OK`, EUR, sin pagos liquidados). Métricas, base del mes y exclusiones documentadas en el README.
+- [X] `sql/05_alquileres_mvp.sql` repetible (ejecutado varias veces): esquema `alq` separado de `dbo.cobros`, importes `DECIMAL(14,3)`, claves SHA-256 de los códigos, procedimientos con validación, `MERGE` en una transacción por archivo y `sp_getapplock`. `analytics_etl` solo ejecuta los procedimientos y lee la vista y el registro (error 229 al leer o borrar tablas).
+- [X] Montaje `data/` → `/data/alquileres` en solo lectura; `N8N_RESTRICT_FILE_ACCESS_TO` limitado a los dos montajes; purga del historial de n8n a 14 días.
+- [X] Workflow `importar_alquileres` con Manual Trigger y Schedule Trigger sobre el mismo recorrido; un archivo por iteración, validación antes de escribir, registro por ejecución sin datos personales; exportado sin secretos ni datos fijados.
+- [X] Primera carga: 2 archivos, 29 filas (25 reservas y 4 pagos). Segunda carga: «Sin cambios», 0 escrituras, mismos recuentos e importes.
+- [X] Archivo inválido (copia temporal de Booking con un importe corregido al principio y `Payment fee` inválido en la línea 10): rechazado entero, sumas de control de las tablas idénticas, copia eliminada. Prueba directa del procedimiento con un lote válido + inválido: rechazado sin insertar nada.
+- [X] Concurrencia: dos ejecuciones lanzadas a la vez → por archivo una `cargada` y otra `sin_cambios`, datos idénticos.
+- [X] Disparo programado: con intervalo de 1 minuto, n8n ejecutó automáticamente las ejecuciones 20–25 (modo `trigger` en su historial, `programada` en `alq.ejecuciones`); restaurado el horario diario 09:00 Europe/Madrid y workflow activo.
+- [X] Reconciliación Excel ↔ SQL Server: 12 filas mes×plataforma × 8 indicadores sin diferencias. Airbnb 6 reservas, 11 noches, bruto 575,00 €, neto 554,13 €, cobrado 554,13 €; Booking 19 reservas, 41 noches, bruto 2.917,50 €, comisiones 437,625 €, gastos 37,90 €, neto 2.441,975 €; 0 excluidas.
+- [X] Dash local en http://127.0.0.1:8060 con filtros de plataforma y periodo, indicadores etiquetados, gráfico, tabla y «Actualizar datos»; mismos totales que SQL Server (p. ej. Airbnb oct–nov: 4 reservas, neto 467,40 €, cobrado 467,40 €).
+- [X] `python/exportar_agregados.py` y `generar_pagina.py` desde el JSON; vista comprobada en escritorio y en 375 px.
+- [ ] Commit, push, despliegue de Pages verificado sin sesión y rama sincronizada.
+
+Siguiente: ampliar el modelo de `Gestion_Alquileres` (gastos, ocupación) y nuevos formatos de export.
 
 Sources:
 

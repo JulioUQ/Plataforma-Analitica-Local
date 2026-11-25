@@ -1,13 +1,18 @@
 # n8n local
 
 n8n `2.49.5` en Docker (`compose.yml`): interfaz en `127.0.0.1:5678`, volumen `n8n_data`,
-zona `Europe/Madrid` y `ejemplos/` montado en `/data/ejemplos` en solo lectura (único
-directorio que pueden leer los nodos de ficheros).
+zona `Europe/Madrid` y dos montajes de solo lectura, los únicos que pueden leer los nodos de
+ficheros: `ejemplos/` en `/data/ejemplos` y la carpeta `data/` del repo en `/data/alquileres`.
+El historial de ejecuciones se purga a los 14 días (guarda las filas leídas).
 
-| Workflow | Origen | Destino |
-| --- | --- | --- |
-| `ping_n8n` | — | `Test_Analytics.dbo.ping` (inserta «Hola desde n8n») |
-| `importar_cobros` | `ejemplos/cobros.csv` | `Gestion_Alquileres.dbo.cobros` (upsert por `cobro_id`) |
+| Workflow | Disparo | Origen | Destino |
+| --- | --- | --- | --- |
+| `importar_alquileres` (`impAlquileresMVP`) | manual y diario 09:00 (activo) | `data/**/*.xlsx` (Airbnb y Booking) | `Gestion_Alquileres.alq` vía `alq.registrar_fuente` |
+| `importar_cobros` | manual | `ejemplos/cobros.csv` (ficticio) | `Gestion_Alquileres.dbo.cobros` (upsert por `cobro_id`) |
+| `ping_n8n` | manual | — | `Test_Analytics.dbo.ping` (inserta «Hola desde n8n») |
+
+El funcionamiento, la programación y la recuperación de cargas de `importar_alquileres` están en
+el `README.md` de la raíz (sección 3). Ejecución manual: `.\etl\n8n\importar_alquileres.ps1`.
 
 ## Repetir la carga de cobros (desde la raíz del repo)
 

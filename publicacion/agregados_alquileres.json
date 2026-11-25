@@ -1,0 +1,227 @@
+{
+  "esquema": 1,
+  "titulo": "Indicadores mensuales de alquiler (Airbnb y Booking)",
+  "exportado_en": "2026-11-25T18:25:32+01:00",
+  "origen": "SQL Server local · Gestion_Alquileres.alq.v_agregados_mensuales (cargado con n8n desde los Excel)",
+  "moneda": "EUR",
+  "periodo": {
+    "desde": "2025-02",
+    "hasta": "2025-12"
+  },
+  "base_del_mes": {
+    "reservas": "mes de la fecha de llegada (check-in)",
+    "importe_cobrado": "mes de la fecha del pago liquidado"
+  },
+  "definiciones": {
+    "reservas": {
+      "etiqueta": "Reservas",
+      "descripcion": "Reservas confirmadas (sin canceladas ni no presentadas), por mes de llegada."
+    },
+    "noches": {
+      "etiqueta": "Noches",
+      "descripcion": "Noches de las reservas confirmadas, por mes de llegada."
+    },
+    "importe_bruto": {
+      "etiqueta": "Importe bruto de reservas",
+      "descripcion": "Precio de la estancia antes de las comisiones de la plataforma (Airbnb: Ingresos brutos; Booking: Final amount), por mes de llegada."
+    },
+    "comisiones": {
+      "etiqueta": "Comisiones de la plataforma",
+      "descripcion": "Airbnb: Comisión de servicio; Booking: Commission amount. Por mes de llegada."
+    },
+    "gastos_pago": {
+      "etiqueta": "Gastos de pago",
+      "descripcion": "Airbnb: Comisión por Pago rápido; Booking: Payment fee. Por mes de llegada."
+    },
+    "neto": {
+      "etiqueta": "Neto de reservas",
+      "descripcion": "Importe bruto − comisiones − gastos de pago, por mes de llegada. En Booking es un cálculo: su export no incluye pagos liquidados."
+    },
+    "importe_cobrado": {
+      "etiqueta": "Cobrado (pagos liquidados)",
+      "descripcion": "Solo Airbnb: importe de los pagos (Payout) por mes de la fecha de pago. No se suma al neto: es la misma actividad vista desde la liquidación."
+    }
+  },
+  "plataformas": [
+    {
+      "id": "airbnb",
+      "nombre": "Airbnb",
+      "informa_pagos": true
+    },
+    {
+      "id": "booking",
+      "nombre": "Booking",
+      "informa_pagos": false
+    }
+  ],
+  "meses": [
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-02",
+      "reservas": 1,
+      "reservas_excluidas": 0,
+      "noches": 2,
+      "importe_bruto": "274.000",
+      "comisiones": "41.100",
+      "gastos_pago": "3.560",
+      "neto": "229.340",
+      "pagos": null,
+      "importe_cobrado": null
+    },
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-04",
+      "reservas": 3,
+      "reservas_excluidas": 0,
+      "noches": 5,
+      "importe_bruto": "339.000",
+      "comisiones": "50.850",
+      "gastos_pago": "4.410",
+      "neto": "283.740",
+      "pagos": null,
+      "importe_cobrado": null
+    },
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-05",
+      "reservas": 2,
+      "reservas_excluidas": 0,
+      "noches": 5,
+      "importe_bruto": "363.000",
+      "comisiones": "54.450",
+      "gastos_pago": "4.710",
+      "neto": "303.840",
+      "pagos": null,
+      "importe_cobrado": null
+    },
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-06",
+      "reservas": 2,
+      "reservas_excluidas": 0,
+      "noches": 5,
+      "importe_bruto": "296.000",
+      "comisiones": "44.400",
+      "gastos_pago": "3.850",
+      "neto": "247.750",
+      "pagos": null,
+      "importe_cobrado": null
+    },
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-07",
+      "reservas": 2,
+      "reservas_excluidas": 0,
+      "noches": 4,
+      "importe_bruto": "295.000",
+      "comisiones": "44.250",
+      "gastos_pago": "3.830",
+      "neto": "246.920",
+      "pagos": null,
+      "importe_cobrado": null
+    },
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-08",
+      "reservas": 4,
+      "reservas_excluidas": 0,
+      "noches": 6,
+      "importe_bruto": "633.000",
+      "comisiones": "94.950",
+      "gastos_pago": "8.220",
+      "neto": "529.830",
+      "pagos": null,
+      "importe_cobrado": null
+    },
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-09",
+      "reservas": 2,
+      "reservas_excluidas": 0,
+      "noches": 9,
+      "importe_bruto": "432.500",
+      "comisiones": "64.875",
+      "gastos_pago": "5.620",
+      "neto": "362.005",
+      "pagos": null,
+      "importe_cobrado": null
+    },
+    {
+      "plataforma": "airbnb",
+      "plataforma_nombre": "Airbnb",
+      "mes": "2025-10",
+      "reservas": 2,
+      "reservas_excluidas": 0,
+      "noches": 2,
+      "importe_bruto": "80.000",
+      "comisiones": "2.900",
+      "gastos_pago": "0.000",
+      "neto": "77.100",
+      "pagos": 0,
+      "importe_cobrado": "0.000"
+    },
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-10",
+      "reservas": 2,
+      "reservas_excluidas": 0,
+      "noches": 3,
+      "importe_bruto": "175.000",
+      "comisiones": "26.250",
+      "gastos_pago": "2.270",
+      "neto": "146.480",
+      "pagos": null,
+      "importe_cobrado": null
+    },
+    {
+      "plataforma": "airbnb",
+      "plataforma_nombre": "Airbnb",
+      "mes": "2025-11",
+      "reservas": 2,
+      "reservas_excluidas": 0,
+      "noches": 6,
+      "importe_bruto": "405.000",
+      "comisiones": "14.700",
+      "gastos_pago": "0.000",
+      "neto": "390.300",
+      "pagos": 2,
+      "importe_cobrado": "467.400"
+    },
+    {
+      "plataforma": "airbnb",
+      "plataforma_nombre": "Airbnb",
+      "mes": "2025-12",
+      "reservas": 2,
+      "reservas_excluidas": 0,
+      "noches": 3,
+      "importe_bruto": "90.000",
+      "comisiones": "3.270",
+      "gastos_pago": "0.000",
+      "neto": "86.730",
+      "pagos": 2,
+      "importe_cobrado": "86.730"
+    },
+    {
+      "plataforma": "booking",
+      "plataforma_nombre": "Booking",
+      "mes": "2025-12",
+      "reservas": 1,
+      "reservas_excluidas": 0,
+      "noches": 2,
+      "importe_bruto": "110.000",
+      "comisiones": "16.500",
+      "gastos_pago": "1.430",
+      "neto": "92.070",
+      "pagos": null,
+      "importe_cobrado": null
+    }
+  ]
+}
