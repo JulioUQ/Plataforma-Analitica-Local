@@ -9,11 +9,11 @@ Trabaja desde la raíz del repositorio en Windows con PowerShell y usa rutas rel
 - Python 3.13 en `.venv` (`requirements.txt`), con `python/db.py` como única forma de conectar.
 - MVP real: Excel de Airbnb y Booking en `data/` (ignorada por Git, montada en n8n en solo lectura) → workflow `importar_alquileres` (`impAlquileresMVP`, manual y diario 09:00, activo) → esquema `Gestion_Alquileres.alq` (`sql/05_alquileres_mvp.sql`).
 - Dash local: alquileres reales en `python/dashboard_alquileres.py` (http://127.0.0.1:8060) y demo ficticia en `python/dashboard_cobros.py` (http://127.0.0.1:8050).
-- Dashboard público estático en GitHub Pages (https://juliouq.github.io/plataforma-analitica-local/), generado por `.github/workflows/pages.yml` con `python/generar_pagina.py` **solo** desde `publicacion/agregados_alquileres.json` (agregados mensuales exportados con `python/exportar_agregados.py`). Nunca publiques Excel, filas individuales, datos de huéspedes, referencias de reserva ni credenciales, ni des acceso a SQL Server al build.
+- Dashboard público estático en GitHub Pages (https://juliouq.github.io/Plataforma-Analitica-Local/), generado por `.github/workflows/pages.yml` con `python/generar_pagina.py` **solo** desde `publicacion/agregados_alquileres.json` (agregados mensuales exportados con `python/exportar_agregados.py`). Nunca publiques Excel, filas individuales, datos de huéspedes, referencias de reserva ni credenciales, ni des acceso a SQL Server al build.
 
 ## Repositorio
 
-- Público en GitHub (`JulioUQ/plataforma-analitica-local`); `main` sigue a `origin/main`. Trabaja con `git pull` y `git push origin main`; no uses `push --all`, `--mirror`, `--force` ni subas etiquetas.
+- Público en GitHub (`JulioUQ/Plataforma-Analitica-Local`); `main` sigue a `origin/main`. Trabaja con `git pull` y `git push origin main`; no uses `push --all`, `--mirror`, `--force` ni subas etiquetas.
 - El historial publicado empieza en un commit nuevo sin la contraseña antigua. El historial anterior queda solo en local en `refs/respaldo/main-original`: no lo subas ni lo fusiones con `main`.
 - Los commits de este repo usan el correo `noreply` de GitHub (configuración local del repo).
 - `INFORME_TRASPASO.md` es un informe histórico local: no lo versiones.
