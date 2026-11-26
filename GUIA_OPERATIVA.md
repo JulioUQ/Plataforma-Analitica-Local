@@ -7,7 +7,7 @@ Todos los comandos se ejecutan en PowerShell desde la raíz del repo.
 
 | Vista | Dirección | Datos |
 | --- | --- | --- |
-| Dashboard público (GitHub Pages) | https://juliouq.github.io/Plataforma-Analitica-Local/ | Agregados mensuales reales de la última exportación publicada |
+| Dashboard público (GitHub Pages) | https://juliouq.github.io/plataforma-analitica-local/ | Agregados mensuales reales de la última exportación publicada |
 | Dash de alquileres (local) | http://127.0.0.1:8060 | SQL Server en vivo (`Gestion_Alquileres.alq`) |
 | Dash de la demo ficticia (local) | http://127.0.0.1:8050 | `dbo.cobros`, cargada desde un CSV inventado |
 | Editor de n8n (local) | http://localhost:5678 | Workflows `importar_alquileres`, `importar_cobros`, `ping_n8n` |
@@ -230,7 +230,7 @@ Demo ficticia (**http://127.0.0.1:8050**): `.\.venv\Scripts\python.exe python\da
 
 ## 5. Dashboard público en GitHub Pages
 
-https://juliouq.github.io/Plataforma-Analitica-Local/ muestra los **indicadores reales agregados
+https://juliouq.github.io/plataforma-analitica-local/ muestra los **indicadores reales agregados
 por mes** de la última exportación publicada: periodo cubierto, fecha de exportación, indicadores
 con filtro por plataforma, gráfico mensual interactivo (Plotly) y tabla. Funciona en móvil y en
 escritorio.

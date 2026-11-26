@@ -2,7 +2,7 @@
 
 Dashboard de alquileres de Airbnb y Booking. n8n importa los Excel a SQL Server y Python consulta los datos para mostrarlos en Dash.
 
-🔗 **Sitio en vivo** · [Visitar el dashboard en GitHub Pages](https://juliouq.github.io/Plataforma-Analitica-Local/)
+🔗 **Sitio en vivo** · [Visitar el dashboard en GitHub Pages](https://juliouq.github.io/plataforma-analitica-local/)
 
 ## Uso local
 
